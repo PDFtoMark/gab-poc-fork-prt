@@ -1,0 +1,18 @@
+name: PRT probe
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: report
+        env:
+          PROBE_SECRET: ${{ secrets.PROBE_SECRET }}
+        run: |
+          echo "event=${GITHUB_EVENT_NAME} ref=${GITHUB_REF} headref=${GITHUB_HEAD_REF}"
+          echo "pr=${{ github.event.pull_request.number }}"
+          if [ -n "${PROBE_SECRET}" ]; then echo "secret=present"; else echo "secret=absent"; fi
+          echo "head_repo=${{ github.event.pull_request.head.repo.full_name }}"
