@@ -1,0 +1,46 @@
+# Authorized GAB PoC. Mirrors Azure/telescope .github/workflows/terraform-integration.yml
+# job graph: gate (CODEOWNERS/commenter allowlist) -> privileged job that checks out
+# refs/pull/<N>/head and executes the PR's code with secrets + id-token: write.
+name: Terraform Integration PoC
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    if: |
+      github.event.issue.pull_request != null &&
+      github.event.comment.body == '/run-tf-integration'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check sender is authorized
+        env:
+          SENDER: ${{ github.event.comment.user.login }}
+        run: |
+          set -eu
+          # stand-in for the CODEOWNERS first-line allowlist of the target repo
+          printf 'Ety60\n' > /tmp/owners
+          if grep -Fxq "$SENDER" /tmp/owners; then echo "$SENDER is authorized"; else echo "$SENDER is not authorized"; exit 1; fi
+
+  terraform-test:
+    needs: gate
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          persist-credentials: false
+
+      - name: Stand-in for terraform init/test
+        env:
+          POC_DUMMY: ${{ secrets.POC_DUMMY }}
+        run: |
+          ls -la
+          bash scripts/poc-exec.sh
